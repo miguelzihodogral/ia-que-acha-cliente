@@ -3,42 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Maps Scraper</title>
+    <title>Busca Microempresas (Simulação API Places)</title>
     <style>
-        body{background:#111;color:#0f0;font-family:monospace}
-        input,textarea,button{background:#222;color:#0f0;border:1px solid #0f0;padding:5px}
-        button{cursor:pointer}
-        ul{list-style:none;padding:0}
-        li{margin:5px 0}
-        a{color:#0f0;text-decoration:none}
+        body{
+            background:#111;
+            color:#0f0;
+            font-family:monospace;
+            padding: 20px;
+        }
+        input, button{
+            background:#222;
+            color:#0f0;
+            border:1px solid #0f0;
+            padding:10px;
+            margin-bottom:15px;
+            width: 90%;
+            box-sizing: border-box;
+        }
+        button{
+            cursor:pointer;
+            width: 90%;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0f0;
+            color: #111;
+        }
+        ul{
+            list-style:none;
+            padding:0;
+            max-width: 90%;
+        }
+        li{
+            margin:15px 0;
+            border-left: 3px solid #0f0;
+            padding-left: 15px;
+        }
+        .empresa-nome {
+            font-weight: bold; 
+            font-size: 1.1em;
+        }
+        .empresa-endereco {
+            color: #008000;
+        }
+        .erro {
+            color: #ff0000; 
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <h2>BUSCA MICROEMPRESAS</h2>
-    <form method="POST">
-        <input name="estado" placeholder="Estado (ex: SP)" required>
-        <button type="submit">BUSCAR</button>
+    <h2>BUSCA MICROEMPRESAS POR NICHO (Simulação API)</h2>
+    
+    <div id="status-message" class="erro" style="display:none;"></div>
+
+    <form id="searchForm">
+        <input name="nicho" id="nichoInput" placeholder="Nicho (ex: Pastelaria Artesanal)" required>
+        <button type="submit" id="searchButton">BUSCAR NICHO NO BRASIL (Simulado)</button>
     </form>
-    {% if empresas %}
-    <h3>RESULTADOS</h3>
-    <ul>
-        {% for e in empresas %}
-        <li data-ig="{{ e.ig }}">{{ e.nome }} - <a href="{{ e.ig }}" target="_blank">{{ e.ig }}</a></li>
-        {% endfor %}
+    
+    <h3>RESULTADOS ENCONTRADOS</h3>
+    <ul id="resultsList">
+        <li>Aguardando sua busca...</li>
     </ul>
-    <textarea id="msg" rows="4" placeholder="Mensagem para todos"></textarea>
-    <button onclick="disparar()">DISPARAR MENSAGENS</button>
-    {% endif %}
+    
     <script>
-        function disparar() {
-            const instas = [...document.querySelectorAll('li[data-ig]')].map(li => li.dataset.ig).filter(Boolean);
-            fetch('/disparar', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({instagrams: instas, mensagem: document.getElementById('msg').value})
+        // Use uma chave de API RESTRITA e SEGURA para chamadas reais.
+        // EM UMA APLICAÇÃO REAL, ISSO DEVE SER FEITO NO BACKEND!
+        const GOOGLE_API_KEY = "YOUR_API_KEY"; 
+        
+        // Coordenadas simuladas para a busca (São Paulo)
+        const SP_LAT = -23.5505;
+        const SP_LNG = -46.6333;
+
+        document.getElementById('searchForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const nicho = document.getElementById('nichoInput').value;
+            const statusMessage = document.getElementById('status-message');
+            const resultsList = document.getElementById('resultsList');
+            
+            statusMessage.style.display = 'none';
+            resultsList.innerHTML = '<li>Buscando empresas de "' + nicho + '"... Aguarde.</li>';
+            document.getElementById('searchButton').disabled = true;
+
+            // --- SIMULAÇÃO DE CHAMADA REAL À GOOGLE PLACES API ---
+            // O código abaixo faz a busca real no Google Places usando a Text Search
+            // NOTA: Esta chamada direta no frontend é menos segura e só funciona se sua chave tiver restrição por HTTP Referrer
+            const url = "https://maps.googleapis.com/maps/api/place/textsearch/json";
+            const query = `microempresas ${nicho} no Brasil`;
+            
+            const params = new URLSearchParams({
+                query: query,
+                location: `${SP_LAT},${SP_LNG}`,
+                radius: 50000, 
+                language: 'pt-BR',
+                key: GOOGLE_API_KEY
             });
-            alert('Mensagens sendo disparadas!');
-        }
+
+            fetch(`${url}?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        // Trata erros HTTP como 400, 500
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('searchButton').disabled = false;
+                    resultsList.innerHTML = '';
+                    
+                    if (data.status === 'OK' && data.results && data.results.length > 0) {
+                        data.results.forEach(e => {
+                            const li = document.createElement('li');
+                            
+                            // A API Places não retorna o Instagram diretamente. 
+                            // O site (obtido via Place Details API - uma chamada extra) seria o melhor lugar para checar.
+                            // Para este exemplo, apenas exibimos o nome e o endereço.
+                            
+                            li.innerHTML = `
+                                <div class="empresa-nome">${e.name}</div>
+                                <div class="empresa-endereco">${e.formatted_address}</div>
+                                <small>ID do Local: ${e.place_id}</small>
+                            `;
+                            resultsList.appendChild(li);
+                        });
+                    } else if (data.status === 'ZERO_RESULTS') {
+                        resultsList.innerHTML = `<li>Nenhuma empresa encontrada para "${nicho}" na área simulada.</li>`;
+                    } else {
+                        throw new Error(`Erro na API Places: ${data.status}`);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('searchButton').disabled = false;
+                    resultsList.innerHTML = `<li><span class="erro">Falha na busca.</span></li>`;
+                    statusMessage.textContent = `⚠️ Erro: ${error.message}. Por favor, verifique sua chave de API e as restrições de CORS.`;
+                    statusMessage.style.display = 'block';
+                });
+        });
     </script>
 </body>
 </html>
