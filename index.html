@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Maps Scraper</title>
+    <style>
+        body{background:#111;color:#0f0;font-family:monospace}
+        input,textarea,button{background:#222;color:#0f0;border:1px solid #0f0;padding:5px}
+        button{cursor:pointer}
+        ul{list-style:none;padding:0}
+        li{margin:5px 0}
+        a{color:#0f0;text-decoration:none}
+    </style>
+</head>
+<body>
+    <h2>BUSCA MICROEMPRESAS</h2>
+    <form method="POST">
+        <input name="estado" placeholder="Estado (ex: SP)" required>
+        <button type="submit">BUSCAR</button>
+    </form>
+    {% if empresas %}
+    <h3>RESULTADOS</h3>
+    <ul>
+        {% for e in empresas %}
+        <li data-ig="{{ e.ig }}">{{ e.nome }} - <a href="{{ e.ig }}" target="_blank">{{ e.ig }}</a></li>
+        {% endfor %}
+    </ul>
+    <textarea id="msg" rows="4" placeholder="Mensagem para todos"></textarea>
+    <button onclick="disparar()">DISPARAR MENSAGENS</button>
+    {% endif %}
+    <script>
+        function disparar() {
+            const instas = [...document.querySelectorAll('li[data-ig]')].map(li => li.dataset.ig).filter(Boolean);
+            fetch('/disparar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({instagrams: instas, mensagem: document.getElementById('msg').value})
+            });
+            alert('Mensagens sendo disparadas!');
+        }
+    </script>
+</body>
+</html>
